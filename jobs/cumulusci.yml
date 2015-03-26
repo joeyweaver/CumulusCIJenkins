@@ -24,7 +24,7 @@
     properties:
         inject:
             properties-content: |
-                CUMULUSCI_PATH=../{cumulusci_job}
+                CUMULUSCI_PATH=../{cumulusci_job}/workspace
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
@@ -35,14 +35,14 @@
         - ant:
             targets: deployCI
             properties:
-                propertyfile: ../orgs/{name}.feature
+                propertyfile: /var/jenkins_credentials/salesforce/{name}.feature
 
 - job-template:
     name: '{name}-master'
     properties:
         inject:
             properties-content: |
-                CUMULUSCI_PATH=../{cumulusci_job}
+                CUMULUSCI_PATH=../{cumulusci_job}/workspace
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
@@ -55,7 +55,7 @@
         - ant:
             targets: deployCI
             properties:
-                propertyfile: ../orgs/{name}.master
+                propertyfile: /var/jenkins_credentials/salesforce/{name}.master
 
 - project:
     branch: master
