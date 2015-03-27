@@ -108,8 +108,9 @@ These credentials are used in a few places in the build to automate merges, tags
     echo "export GITHUB_USERNAME=YOUR_GITHUB_USER" > YourRepoName.github
     echo "export GITHUB_PASSWORD=YOUR_GITHUB_APP_TOKEN" >> YourRepoName.github
 
-    # mrbelvedere credentials (optional)
-    # If configured, will automatically publish beta for installation after successful build
+### mrbelvedere credentials (optional)
+If you are using mrbelvedere to publish your beta packages for installation, you can provide the information needed to automatically publish betas after they pass build.
+
     echo "export MRBELVEDERE_BASE_URL=https://YOUR_MRBELVEDERE_URL/mpinstaller" > YourRepoName.mrbelvedere
     echo "export MRBELVEDERE_PACKAGE_KEY=YOUR_PACKAGE_API_KEY" >> YourRepoName.mrbelvedere
     
