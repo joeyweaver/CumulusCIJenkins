@@ -116,7 +116,7 @@ If you are using mrbelvedere to publish your beta packages for installation, you
     
 # Locking Down Jenkins
 
-The default Jenkins image has no authorization set up so all anonymous users can do anything.  **Do not leave your Jenkins installation running this way!!!***
+The default Jenkins image has no authorization set up so all anonymous users can do anything.  **Do not leave your Jenkins installation running this way!!!**
 
 Go to your Jenkins instance in a browser and follow the instructions from Jenkins:
 https://wiki.jenkins-ci.org/display/JENKINS/Standard+Security+Setup
