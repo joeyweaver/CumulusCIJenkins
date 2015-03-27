@@ -1,6 +1,7 @@
 - project:
     name: GrantLifecycleApp
     github_user: jlantz
+    emails: cumulusci1@mailinator.com cumulusci2@mailinator.com
     jobs:
         - '{name}-feature'
         - '{name}-master'

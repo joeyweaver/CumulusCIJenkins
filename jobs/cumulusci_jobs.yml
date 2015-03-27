@@ -44,6 +44,10 @@
     wrappers:
         - build-name:
             name: ${{GIT_BRANCH}}
+    publishers:
+        - github-notifier
+        - email:
+            recipients: '${{email}}'
 
 - job-template:
     name: '{name}-master'
@@ -62,6 +66,10 @@
     builders:
         - ant:
             targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.master deployCI" 
+    publishers:
+        - github-notifier
+        - email:
+            recipients: '{emails}'
 
 - job-template:
     name: '{name}-master-to-feature'
@@ -110,6 +118,10 @@
         - inject:
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
+        - throttle:
+            max-total: 1
+            categories:
+                - '{name}.package'
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
@@ -134,6 +146,11 @@
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
                 SELENIUM_URL=http://172.17.42.1:4444/wd/hub
+        - throttle:
+            max-total: 1
+            categories:
+                - '{name}.package'
+                - selenium
     builders:
         - shell: |
             #!/bin/bash
@@ -376,6 +393,11 @@
         retry(2){{
             mpinst = build('{name}-beta-mrbelvedere-release', BUILD_COMMIT: revision, PACKAGE_VERSION: package_version)
         }}
+
+    publishers:
+        - github-notifier
+        - email:
+            recipients: '{emails}'
 
 - project:
     branch: master

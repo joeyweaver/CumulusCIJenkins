@@ -76,7 +76,7 @@ With a recent Linux server, you should be able to get everything set up and runn
    
     cp ~/.ssh/id_rsa* ~/CumulusCIJenkins/credentials/.ssh
     
-# Credentials
+## Credentials
 
 * Create credentials files
     
