@@ -1,4 +1,4 @@
-jobs.yml
+jobs/jobs.yml
 credentials/.ssh/id_rsa*
 credentials/salesforce/*.feature
 credentials/salesforce/*.master
