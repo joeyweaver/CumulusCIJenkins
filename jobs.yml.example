@@ -1,0 +1,14 @@
+- project:
+    name: GrantLifecycleApp
+    github_user: jlantz
+    jobs:
+        - '{name}-feature'
+        - '{name}-master'
+        - '{name}-master-flow'
+        - '{name}-master-to-feature'
+        - '{name}-beta'
+        - '{name}-beta-package'
+        - '{name}-beta-test'
+        - '{name}-beta-mrbelvedere-release'
+        - '{name}-beta-github-release'
+        - '{name}-beta-release-notes'

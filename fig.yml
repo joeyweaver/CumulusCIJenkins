@@ -3,5 +3,7 @@ jenkins:
   volumes:
     - jenkins_home:/var/jenkins_home
     - credentials:/var/jenkins_credentials
+    - /usr/bin/docker:/usr/bin/docker
+    - /var/run/docker.sock:/var/run/docker.sock
   ports:
     - "8080:8080"

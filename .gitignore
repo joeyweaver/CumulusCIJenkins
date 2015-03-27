@@ -1,1 +1,31 @@
-credentials/id_rsa*
+jobs.yml
+credentials/.ssh/id_rsa*
+credentials/salesforce/*.feature
+credentials/salesforce/*.master
+credentials/salesforce/*.package
+credentials/salesforce/*.package.oauth
+credentials/salesforce/*.beta
+credentials/salesforce/*.release
+credentials/salesforce/*.github
+credentials/salesforce/*.mrbelvedere
+credentials/.java
+jenkins_home/.owner
+jenkins_home/Download metadata.log
+jenkins_home/Out of order build detection.log
+jenkins_home/Workspace clean-up.log
+jenkins_home/users/
+jenkins_home/config-history/
+jenkins_home/hudson.model.UpdateCenter.xml
+jenkins_home/hudson.plugins.git.GitTool.xml
+jenkins_home/identity.key.enc
+jenkins_home/init.groovy.d/
+jenkins_home/jobs/
+jenkins_home/nodeMonitors.xml
+jenkins_home/plugins/
+jenkins_home/queue.xml.bak
+jenkins_home/secret.key
+jenkins_home/secret.key.not-so-secret
+jenkins_home/secrets/
+jenkins_home/updates/
+jenkins_home/userContent/
+jenkins_home/war/

@@ -1,0 +1,399 @@
+- defaults:
+    name: global
+    branch_master: master
+    branch_feature_prefix: feature/
+    tag_beta_prefix: beta/
+    tag_release_prefix: release/
+    github_host: github.com
+    cumulusci_user: SalesforceFoundation
+    cumulusci_job: CumulusCI-master
+
+- job-template:
+    name: 'CumulusCI-{branch}'
+    scm:
+        - git:
+            url: git@{github_host}:{cumulusci_user}/CumulusCI.git
+            branches:
+                - origin/{branch}
+            skip-tag: true
+    triggers:
+        - github
+
+- job-template:
+    name: '{name}-feature'
+    parameters:
+        - string:
+            name: branch
+            description: The branch to build (i.e. feature/123-description-of-feature)
+        - string:
+            name: email
+            description: The email address to notify if the build fails
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/${{branch}}
+            skip-tag: true
+    builders:
+        - ant:
+            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.feature deployCI"
+    wrappers:
+        - build-name:
+            name: ${{GIT_BRANCH}}
+
+- job-template:
+    name: '{name}-master'
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/{branch_master}
+            skip-tag: true
+    triggers:
+        - github
+    builders:
+        - ant:
+            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.master deployCI" 
+
+- job-template:
+    name: '{name}-master-to-feature'
+    parameters:
+        - string:
+            name: BUILD_COMMIT
+            description: The sha1 commit id of the code to be deployed to the package org
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+                GITHUB_ORG_NAME={github_user}
+                GITHUB_REPO_NAME={name}
+                MASTER_BRANCH={branch_master}
+    builders:
+        - shell: |
+            #!/bin/bash
+
+            export BUILD_WORKSPACE=$WORKSPACE
+
+            # Load environment variables for OAuth to Github
+            source /var/jenkins_credentials/salesforce/{name}.github
+            exit_status=$?
+            if [ $exit_status != 0 ]; then
+                echo "{name}.github not found, skipping build"
+                # We return 0 so the flow doesn't fail on this step
+                exit 0
+            fi
+
+            python ../../{cumulusci_job}/workspace/ci/github/create_release.py
+            exit_status=$?
+            
+            exit $exit_status
+
+- job-template:
+    name: '{name}-beta'
+    parameters:
+        - string:
+            name: BUILD_COMMIT
+            description: The sha1 commit id of the code to be deployed to the package org
+        - string:
+            name: branch
+            default: master
+            description: The branch to build (i.e. master)
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/{branch_master}
+            local-branch: ${{BUILD_COMMIT}}
+            skip-tag: true
+    triggers:
+        - github
+    builders:
+        - ant:
+            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.package deployCI"
+
+- job-template:
+    name: '{name}-beta-package'
+    parameters:
+        - string:
+            name: BUILD_COMMIT
+            description: The sha1 commit id of the code to be deployed to the package org
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+                SELENIUM_URL=http://172.17.42.1:4444/wd/hub
+    builders:
+        - shell: |
+            #!/bin/bash
+
+            # Load environment variables for OAuth to packaging org
+            source /var/jenkins_credentials/salesforce/{name}.package.oauth
+
+            export BUILD_NAME="Build #$BUILD_NUMBER"
+            export BUILD_WORKSPACE=$WORKSPACE
+
+            # Parse package name from cumulusci.properties in the beta job's workspace
+            PACKAGE=`grep 'cumulusci.package.name.managed *=' ../../{name}-beta/workspace/cumulusci.properties`
+            if [ -z "$PACKAGE" ]; then
+                PACKAGE=`grep 'cumulusci.package.name *=' ../../{name}-beta/workspace/cumulusci.properties`
+            fi
+            export PACKAGE=`echo "$PACKAGE" | sed -e 's/.* *= *//'`
+            echo "PACKAGE = $PACKAGE"
+            
+            # Kill any running Selenium docker containers
+            to_kill=$(sudo docker ps | grep 'vvoyer/docker-selenium-firefox-chrome' | sed -e 's/  *.*$//g')
+            if [ "$to_kill" != "" ]; then
+                sudo docker kill $to_kill
+                sudo docker rm $to_kill
+            fi
+            
+            # Start the Selenium docker container
+            container=$(sudo docker run --privileged -p 4444:4444 -p 5999:5999 -d vvoyer/docker-selenium-firefox-chrome)
+            echo "Started docker container for selenium-server: $container"
+            
+            python ../../{cumulusci_job}/workspace/ci/package_upload_ss.py
+            exit_status=$?
+            
+            sudo docker kill $container
+            sudo docker rm $container
+            
+            exit $exit_status
+
+- job-template:
+    name: '{name}-beta-test'
+    wrappers:
+        - inject:
+            properties-file: ../../{name}-beta-package/workspace/package.properties
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/{branch_master}
+            refspec: +refs/tags/{tag_beta_prefix}*:refs/remotes/origin/tags/{tag_beta_prefix}*
+            local-branch: ${{BUILD_COMMIT}}
+            skip-tag: true
+    triggers:
+        - github
+    builders:
+        - ant:
+            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.beta deployManagedBeta runAllTests"
+
+- job-template:
+    name: '{name}-beta-mrbelvedere-release'
+    parameters:
+        - string:
+            name: BUILD_COMMIT
+            description: The sha1 commit id of the code to be deployed to the package org
+        - string:
+            name: PACKAGE_VERSION
+            description: The managed package version of the parent package
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+                PROPERTIES_PATH=version.properties
+                BETA=True
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/{branch_master}
+            local-branch: ${{BUILD_COMMIT}}
+            skip-tag: true
+    builders:
+        - shell: |
+            #!/bin/bash
+
+            export VERSION=$PACKAGE_VERSION
+
+            # Parse package name from cumulusci.properties in the beta job's workspace
+            NAMESPACE=`grep 'cumulusci.package.namespace *=' cumulusci.properties`
+            export NAMESPACE=`echo "$NAMESPACE" | sed -e 's/.* *= *//'`
+            echo "NAMESPACE = $NAMESPACE"
+
+            # Load environment variables for OAuth to packaging org
+            source /var/jenkins_credentials/salesforce/{name}.mrbelvedere
+            exit_status=$?
+            if [ $exit_status != 0 ]; then
+                echo "{name}.mrbelvedere not found, skipping build"
+                # We return 0 so the flow doesn't fail on this step
+                exit 0
+            fi
+
+            python ../../{cumulusci_job}/workspace/ci/mrbelvedere_update_dependencies.py
+            exit_status=$?
+            
+            exit $exit_status
+
+- job-template:
+    name: '{name}-beta-github-release'
+    parameters:
+        - string:
+            name: BUILD_COMMIT
+            description: The sha1 commit id of the code to be deployed to the package org
+        - string:
+            name: PACKAGE_VERSION
+            description: The managed package version of the parent package
+    properties:
+        - inject:
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+                GITHUB_ORG_NAME={github_user}
+                GITHUB_REPO_NAME={name}
+                PREFIX_BETA={tag_beta_prefix}
+    builders:
+        - shell: |
+            #!/bin/bash
+
+            export BUILD_WORKSPACE=$WORKSPACE
+
+            # Load environment variables for OAuth to Github
+            source /var/jenkins_credentials/salesforce/{name}.github
+            exit_status=$?
+            if [ $exit_status != 0 ]; then
+                echo "{name}.github not found, skipping build"
+                # We return 0 so the flow doesn't fail on this step
+                exit 0
+            fi
+
+            python ../../{cumulusci_job}/workspace/ci/github/create_release.py
+            exit_status=$?
+            
+            exit $exit_status
+
+- job-template:
+    name: '{name}-beta-release-notes'
+    wrappers:
+        - inject:
+            properties-file: ../../{name}-beta-github-release/workspace/release.properties
+            properties-content: |
+                CUMULUSCI_PATH=../../{cumulusci_job}/workspace
+                GITHUB_ORG_NAME={github_user}
+                GITHUB_REPO_NAME={name}
+                MASTER_BRANCH={branch_master}
+    builders:
+        - shell: |
+            #!/bin/bash
+
+            # Load environment variables for OAuth to Github
+            source /var/jenkins_credentials/salesforce/{name}.github
+            exit_status=$?
+            if [ $exit_status != 0 ]; then
+                echo "{name}.github not found, skipping build"
+                # We return 0 so the flow doesn't fail on this step
+                exit 0
+            fi
+
+            python ../../{cumulusci_job}/workspace/ci/github/release_notes.py
+            exit_status=$?
+            
+            exit $exit_status
+
+- job-template:
+    name: '{name}-master-flow'
+    project-type: flow
+    scm:
+        - git:
+            url: git@{github_host}:{github_user}/{name}.git
+            branches:
+                - origin/{branch_master}
+            local-branch: ${{BUILD_COMMIT}}
+            skip-tag: true
+    trigger:
+        - github
+
+    dsl: |
+        // Get the commit id which triggered the flow build to pass to all jobs which deal with git code
+        def revision = build.properties['environment']['GIT_COMMIT']
+        
+        // For {name}-master-flow, manually specify the master branch
+        def branch = {branch_master}
+        
+        // Push master changes to feature branches
+        retry(2){{
+            d2f = build("{name}-master-to-feature", BUILD_COMMIT: revision)
+        }}
+        
+        parallel(
+            {{
+                // Deploy to the {name}.master org as an unmanaged package and run apex tests
+                retry 2, {{
+                    dev = build("{name}-master")
+                }}
+            }},
+            {{
+                // Deploy code to package org
+                retry 2, {{
+                    uat = build("{name}-beta", BUILD_COMMIT: revision, branch: branch)
+                }}
+            }}
+        )
+        
+        // Build a managed package in the package org
+        retry(2){{
+            uat_pkg = build('{name}-beta-package', BUILD_COMMIT: revision)
+        }}
+        
+        // Run Apex test in parallel on two different orgs
+        parallel(
+            // Install and test the managed package in cumulus.uat org
+            {{
+                retry 5, {{
+                    beta_test = build('{name}-beta-test')
+                }}
+            }}
+        )
+        
+        // Extract install url and package version from {name}-beta-test environment
+        def install_url = beta_test.environment.get('INSTALL_URL')
+        def package_version = beta_test.environment.get('PACKAGE_VERSION')
+        
+        // Create a Github Release for the package after passing test
+        retry(2){{
+            ghrel = build('{name}-beta-github-release', BUILD_COMMIT: revision, INSTALL_URL: install_url, PACKAGE_VERSION: package_version)
+        }}
+        
+        // Construct and add the release notes to the release
+        retry(2){{
+            relnotes = build('{name}-beta-release-notes')
+        }}
+        
+        // Deploy the package as the current beta in the installer
+        retry(2){{
+            mpinst = build('{name}-beta-mrbelvedere-release', BUILD_COMMIT: revision, PACKAGE_VERSION: package_version)
+        }}
+
+- project:
+    branch: master
+    name: CumulusCI-{branch}
+    jobs:
+        - 'CumulusCI-{branch}'
+
+- project:
+    name: GrantLifecycleApp
+    github_user: jlantz
+    jobs:
+        - '{name}-feature'
+        - '{name}-master'
+        - '{name}-master-flow'
+        - '{name}-master-to-feature'
+        - '{name}-beta'
+        - '{name}-beta-package'
+        - '{name}-beta-test'
+        - '{name}-beta-mrbelvedere-release'
+        - '{name}-beta-github-release'
+        - '{name}-beta-release-notes'
