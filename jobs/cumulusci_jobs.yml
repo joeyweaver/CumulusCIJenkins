@@ -99,7 +99,7 @@
                 exit 0
             fi
 
-            python ../{cumulusci_job}/ci/github/create_release.py
+            python ../{cumulusci_job}/ci/github/merge_master_to_feature.py
             exit_status=$?
             
             exit $exit_status
