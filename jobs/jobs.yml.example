@@ -1,7 +1,16 @@
+# This project shows how to use a custom branch from CumulusCI
+- project:
+    branch: rc-cci
+    name: CumulusCI-rc-cci
+    jobs:
+        - 'CumulusCI-{branch}'
+
 - project:
     name: GrantLifecycleApp
     github_user: jlantz
     emails: cumulusci1@mailinator.com cumulusci2@mailinator.com
+    # This line only necessary if using a custom branch of CumulusCI
+    cumulusci_job: CumulusCI-rc-cci
     jobs:
         - '{name}-feature'
         - '{name}-master'
