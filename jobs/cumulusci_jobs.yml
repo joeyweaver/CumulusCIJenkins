@@ -338,7 +338,7 @@
         def revision = build.properties['environment']['GIT_COMMIT']
         
         // For {name}-master-flow, manually specify the master branch
-        def branch = {branch_master}
+        def branch = '{branch_master}'
         
         // Push master changes to feature branches
         retry(2){{
