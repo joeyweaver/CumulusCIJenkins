@@ -219,7 +219,7 @@
                 # We return 0 so the flow doesn't fail on this step
                 exit 0
             fi
-            ant -propertyfile /var/jenkins_credentials/salesforce/{name}.beta deployManagedBeta runAllTests
+            ant -propertyfile /var/jenkins_credentials/salesforce/{name}.beta deployManagedBeta runAllTestsManaged
 
 - job-template:
     name: '{name}-beta-mrbelvedere-release'
