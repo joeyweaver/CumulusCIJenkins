@@ -401,6 +401,6 @@
 
 - project:
     branch: master
-    name: CumulusCI-{branch}
+    name: CumulusCI-master
     jobs:
         - 'CumulusCI-{branch}'
