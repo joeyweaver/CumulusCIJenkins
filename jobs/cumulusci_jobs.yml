@@ -7,6 +7,7 @@
     github_host: github.com
     cumulusci_user: SalesforceFoundation
     cumulusci_job: CumulusCI-master
+    test_mode: parallel
 
 - job-template:
     name: 'CumulusCI-{branch}'
@@ -32,6 +33,7 @@
         - inject:
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
+                TEST_MODE={test_mode}
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
@@ -55,14 +57,13 @@
         - inject:
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
+                TEST_MODE={test_mode}
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
             branches:
                 - origin/{branch_master}
             skip-tag: true
-    triggers:
-        - github
     builders:
         - ant:
             targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.master deployCI" 
@@ -118,6 +119,7 @@
         - inject:
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
+                TEST_MODE={test_mode}
         - throttle:
             max-total: 1
             categories:
@@ -133,7 +135,7 @@
         - github
     builders:
         - ant:
-            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.package deployCI"
+            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.package deployCIPackageOrg"
 
 - job-template:
     name: '{name}-beta-package'
@@ -195,6 +197,7 @@
             properties-file: ../{name}-beta-package/package.properties
             properties-content: |
                 CUMULUSCI_PATH=../{cumulusci_job}
+                TEST_MODE={test_mode}
     scm:
         - git:
             url: git@{github_host}:{github_user}/{name}.git
@@ -206,8 +209,17 @@
     triggers:
         - github
     builders:
-        - ant:
-            targets: "-propertyfile /var/jenkins_credentials/salesforce/{name}.beta deployManagedBeta runAllTests"
+        - shell: | 
+            #!/bin/bash
+            # Load environment variables for OAuth to Github
+            source /var/jenkins_credentials/salesforce/{name}.github
+            exit_status=$?
+            if [ $exit_status != 0 ]; then
+                echo "{name}.github not found, provide this file if you're trying to access a private GitHub repo" 
+                # We return 0 so the flow doesn't fail on this step
+                exit 0
+            fi
+            ant -propertyfile /var/jenkins_credentials/salesforce/{name}.beta deployManagedBeta runAllTests
 
 - job-template:
     name: '{name}-beta-mrbelvedere-release'
